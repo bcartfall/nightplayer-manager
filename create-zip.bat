@@ -1,0 +1,1 @@
+git archive --format=zip --output=nightplayer-manager.zip HEAD

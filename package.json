@@ -1,0 +1,15 @@
+{
+  "name": "nightplayer-nanager",
+  "version": "1.0.0",
+  "description": "API gateway to manage downloads for nightplayer.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --no-warnings test/ytdlp.js && node test/run.js"
+  }
+}

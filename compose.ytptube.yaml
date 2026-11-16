@@ -1,0 +1,32 @@
+name: nightplayer
+
+x-user: &user "${PUID:-1000}:${PGID:-1000}"
+
+services:
+  manager:
+    build: .
+    image: nightplayer-manager:latest
+    container_name: nightplayer-manager
+    restart: unless-stopped
+    user: *user
+    depends_on:
+      - ytptube
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+      DOWNLOAD_PATH: /downloads
+      DB_PATH: /data/gateway.db
+      YTDLP_UI: ytptube
+      YTPTUBE_URL: http://ytptube:8081
+      YTPTUBE_DOWNLOAD_PATH: /downloads
+      # YTPTUBE_USER: ${YTPTUBE_USER:-}
+      # YTPTUBE_PASSWORD: ${YTPTUBE_PASSWORD:-}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      POLL_INTERVAL_MS: ${POLL_INTERVAL_MS:-1500}
+    volumes:
+      - /mnt/media/yt-dlp/downloads:/downloads
+      - data:/data
+volumes:
+  data:

@@ -1,0 +1,38 @@
+# Self-hosted setup: the gateway runs yt-dlp itself inside its own container.
+# No YTPTube needed.
+#
+#   docker compose -f compose.ytdlp.yaml up -d --build
+#
+# Keep yt-dlp current (YouTube changes often):
+#   docker compose -f compose.ytdlp.yaml build --pull --no-cache && docker compose -f compose.ytdlp.yaml up -d
+name: nightplayer
+
+x-user: &user "${PUID:-1000}:${PGID:-1000}"
+
+services:
+  manager:
+    build: .
+    image: nightplayer-manager:latest
+    container_name: nightplayer-manager
+    restart: unless-stopped
+    user: *user
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+      DOWNLOAD_PATH: /downloads
+      DB_PATH: /data/gateway.db
+      YTDLP_UI: ytdlp
+      YTDLP_STATE_DIR: /data/ytdlp
+      YTDLP_CONCURRENCY: ${YTDLP_CONCURRENCY:-2}
+      # YTDLP_FORMAT: bv*+ba/b
+      # YTDLP_SORT: res:1080,ext:mp4:m4a
+      # YTDLP_COOKIES: /data/cookies.txt   # for age-gated / "confirm you're not a bot" videos
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      POLL_INTERVAL_MS: ${POLL_INTERVAL_MS:-1500}
+    volumes:
+      - ./downloads:/downloads
+      - ./data:/data
+volumes:
+  data:
