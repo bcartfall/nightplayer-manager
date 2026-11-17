@@ -156,7 +156,7 @@ export function createServer({ config, db, plugin, hub, tracker }) {
       throw new HttpError(409, `Video is not ready (status: ${row.status})`, { status: row.status, links: view(row).links });
     }
     const st = await fileStat(row.file_path);
-    if (!st) throw new HttpError(410, 'The video file is missing from disk; POST /api/download again to re-fetch it');
+    if (!st) throw new HttpError(410, `The video file is missing from disk (${row.file_path}); POST /api/download again to re-fetch it`);
     serveFile(req, res, row.file_path, st, cors);
   });
 

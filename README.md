@@ -1,6 +1,6 @@
-# ytdl-gateway
+# Nightplayer Manager
 
-A zero-dependency Node.js API that downloads YouTube videos and Twitch VODs/clips with yt-dlp, either the copy built into its own Docker image (`ytdlp` plugin, self-hosted) or a yt-dlp web UI (YTPTube). It remembers them in its own SQLite database, and streams the files back with HTTP Range support.
+A zero-dependency Node.js API that downloads YouTube videos and Twitch VODs/clips with yt-dlp, either the copy built into its own Docker image (`ytdlp` plugin, self-hosted) or a yt-dlp web UI (YTPTube). It remembers them in its own SQLite database, and streams the files back with HTTP Range support. This is meant to be used with `nightplayer` for downloading and manager videos.
 
 Requires **Node 22.13+** (uses built-in `node:sqlite`, `node:http2` and `fetch`). No `npm install` needed.
 
