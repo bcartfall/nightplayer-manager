@@ -111,7 +111,7 @@ export default function createYtdlp(config) {
       '--paths', `temp:${join(tmpRoot, job.id)}`,
       '--progress-template',
       'download:__P__%(progress.status)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|' +
-        '%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s',
+      '%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s',
       '--print', 'before_dl:__META__%(.{id,title,description,requested_formats})j',
       '--print', 'after_move:__FILE__%(filepath)s',
       // stdout encoding is unreliable on Windows; this file is always written as UTF-8
@@ -218,6 +218,52 @@ export default function createYtdlp(config) {
     };
   }
 
+  const isTwitch = (url) => /^https?:\/\/([\w-]+\.)*twitch\.tv\//i.test(url || '');
+
+  // Twitch VODs come out with the moov atom at the end, which stalls browser playback.
+  // Remux without re-encoding (ffmpeg -c copy -movflags +faststart), then replace the original.
+  // Failures are logged and leave the original file untouched.
+  function faststart(job, file) {
+    log.info(`ytdlp: re-encoding twitch video with +faststart job ${job.id} (${job.url})`);
+    return new Promise((resolveP) => {
+      if (!/\.(mp4|m4v|mov)$/i.test(file)) return resolveP(false);
+      const tmpOut = join(tmpRoot, job.id, 'movie_fs.mp4');
+      let proc;
+      try {
+        proc = spawn(cfg.ffmpegBin || 'ffmpeg',
+          ['-nostdin', '-y', '-loglevel', 'error', '-i', file, '-c', 'copy', '-movflags', '+faststart', tmpOut],
+          { env: childEnv(), stdio: ['ignore', 'ignore', 'pipe'] });
+      } catch (err) {
+        log.warn(`ytdlp: faststart could not start for ${job.id}: ${err.message}`);
+        return resolveP(false);
+      }
+      job.proc = proc; // so remove() can kill it
+      let stderr = '';
+      proc.stderr.on('data', (d) => { stderr = (stderr + d).slice(-4000); });
+      proc.on('error', (err) => {
+        job.proc = null;
+        log.warn(`ytdlp: faststart failed to run for ${job.id}: ${err.message}`);
+        resolveP(false);
+      });
+      proc.on('close', (code) => {
+        job.proc = null;
+        if (job.cancelled) return resolveP(false);
+        if (code !== 0) {
+          log.warn(`ytdlp: faststart exited with code ${code} for ${job.id}: ${stderr.trim()}`);
+          return resolveP(false);
+        }
+        try {
+          log.info(`ytdlp: replacing original with faststart copy ${job.id} (${job.url}) file=${file}`);
+          renameSync(tmpOut, file); // replaces the original with the faststart copy
+          resolveP(true);
+        } catch (err) {
+          log.warn(`ytdlp: faststart could not replace ${file}: ${err.message}`);
+          resolveP(false);
+        }
+      });
+    });
+  }
+
   function start(job) {
     Object.assign(job, { state: 'downloading', percent: 0, speed: null, eta: null, error: null, streamsDone: 0, streamsTotal: 1 });
     persist(job);
@@ -247,13 +293,18 @@ export default function createYtdlp(config) {
       if (job.stderrTail.length > 20) job.stderrTail.shift();
     });
 
-    proc.on('close', (code, signal) => {
+    proc.on('close', async (code, signal) => {
       if (settled) return;
       settled = true;
       if (job.cancelled) return; // remove() already cleaned up
       if (code === 0) {
         const found = resolveOutput(job);
         if (found.error) return finish(job, { state: 'error', error: found.error });
+        if (isTwitch(job.url)) {
+          job.percent = 99; job.speed = null; job.eta = null;
+          await faststart(job, found.file);
+          if (job.cancelled) return;
+        }
         return finish(job, { state: 'finished', percent: 100, file: found.file });
       }
       const errLine = [...job.stderrTail].reverse().find((l) => l.startsWith('ERROR:'));
