@@ -166,6 +166,7 @@ export function createStoryboards({ db, config }) {
         log.warn(`unknown duration for ${uuid}; sampling one image every 10 s`);
         plan = { interval: 10, fps: 0.1, frames: SBB.maxImages };
       }
+      log.info(`creating storyboard for ${uuid}: ${JSON.stringify(plan)}`);
 
       // 2. Extract the small images. (-r rather than the fps filter: the filter emits no frame at
       //    all for a clip shorter than the interval. -frames:v drops the duplicated tail frames
