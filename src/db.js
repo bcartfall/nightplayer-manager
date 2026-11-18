@@ -39,6 +39,7 @@ export function openDb(path) {
   const byUuid = db.prepare('SELECT * FROM videos WHERE uuid = ?');
   const bySource = db.prepare('SELECT * FROM videos WHERE source = ? AND source_id = ?');
   const active = db.prepare("SELECT * FROM videos WHERE status IN ('queued','downloading') AND external_id IS NOT NULL");
+  const finished = db.prepare("SELECT * FROM videos WHERE status = 'finished' AND file_path IS NOT NULL");
   const insert = db.prepare(`
     INSERT INTO videos (uuid, source, source_id, url, status, percent, plugin, created_at, updated_at)
     VALUES (?, ?, ?, ?, 'queued', 0, ?, ?, ?)`);
@@ -50,6 +51,7 @@ export function openDb(path) {
     getByUuid: (uuid) => get(byUuid, uuid),
     getBySource: (source, sourceId) => get(bySource, source, sourceId),
     listActive: () => active.all(),
+    listFinished: () => finished.all(),
 
     insert({ uuid, source, sourceId, url, plugin }) {
       const now = new Date().toISOString();

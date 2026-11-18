@@ -25,6 +25,8 @@ npm test                 # end-to-end test against a mock YTPTube
 | `POLL_INTERVAL_MS` | `1500` | How often active downloads are checked |
 | `TLS_KEY` / `TLS_CERT` | – | Set both to serve HTTP/2 (+ HTTP/1.1 fallback) directly |
 | `CORS_ORIGIN` | `*` | `Access-Control-Allow-Origin` |
+| `STORYBOARD` | `1` | Set `0` to stop generating `.sbb` storyboard files |
+| `FFMPEG_BIN` | `ffmpeg` | ffmpeg used for storyboards (already in the Docker image) |
 
 **About HTTP/2:** browsers only speak h2 over TLS, so Node serves h2 only when `TLS_KEY`/`TLS_CERT` are set. Without them it serves HTTP/1.1, which is the right choice behind a reverse proxy (Caddy, nginx, Traefik) that terminates TLS and speaks h2 to the browser. Range requests behave identically on both.
 
@@ -52,7 +54,7 @@ Accepts a single YouTube video (watch, youtu.be, shorts, live, embed) or a Twitc
 ```
 
 ### `GET /api/videos/{uuid}`
-Title, description, `status` (`queued | downloading | finished | error | cancelled`), `percent`, `speed` (bytes/s), `eta` (s), `error`, `fileSize`. `links.events` is present while downloading, `links.stream` once finished.
+Title, description, `status` (`queued | downloading | finished | error | cancelled`), `percent`, `speed` (bytes/s), `eta` (s), `error`, `fileSize`. `links.events` is present while downloading, `links.stream` once finished. `links.storyboard` is `/api/videos/{uuid}/storyboard` once the storyboard file exists, otherwise `null` (see below).
 
 ### `GET /api/videos/{uuid}/events` (Server-Sent Events)
 Sends a `progress` event immediately and on every change (payload = the same JSON as above), then a `done` event (finished / error / cancelled) and closes. `deleted` is sent if the video is deleted meanwhile.
@@ -68,8 +70,21 @@ Serves the file for a `<video src>` tag: `Accept-Ranges: bytes`, `206 Partial Co
 <video controls src="https://host/api/videos/6f0c…/stream"></video>
 ```
 
+### `GET /api/videos/{uuid}/storyboard`
+Serves the video's storyboard (`.sbb`) file, with the same Range support as `/stream`; `404` if there is none. After a download finishes, the gateway creates the storyboard in the background (one at a time, using ffmpeg), so `links.storyboard` is `null` for a short while after `status` becomes `finished`; poll `GET /api/videos/{uuid}` to see it appear. (The `done` SSE event is sent before that, so it still shows `null`.) The file is stored next to the video (`Title [id].sbb`) and is removed with it. Finished videos that have none (downloaded earlier, or interrupted by a restart) are queued on startup. A video ffmpeg cannot read simply has no storyboard (see the log).
+
+**.sbb format** (little-endian): a small 160x90 image is taken every 10 s and packed 10x10 into 1600x900 JPEG sheets.
+```
+0   8  magic 53 54 4F 52 59 73 62 1A     32  4  rows per sheet (10)
+8   4  version (0)                       36  4  columns per sheet (10)
+12  4  sheet count                       40  24 reserved (0)
+16  4  small image width (160)           64  20 x count: u32 index, u32 offset, u32 size, f64 seconds covered
+20  4  small image height (90)           then a 20 byte terminator (u32 0xFFFFFFFF, u32 end offset, u32 0, f64 0)
+24  8  fps of small images (f64, 0.1)    then the JPEG sheets back to back
+```
+
 ### `DELETE /api/videos/{uuid}`
-Cancels the download if running, deletes the file (and same-name `.info.json`/thumbnail/subtitle sidecars, plus an emptied channel folder) from disk, removes it from YTPTube's history, and removes the DB row. A later `POST /api/download` for the same URL downloads it afresh with a new uuid.
+Cancels the download if running, deletes the file (and same-name `.info.json`/thumbnail/subtitle/`.sbb` sidecars, plus an emptied channel folder) from disk, removes it from YTPTube's history, and removes the DB row. A later `POST /api/download` for the same URL downloads it afresh with a new uuid.
 
 `GET /api/health` is a liveness check.
 

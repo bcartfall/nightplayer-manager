@@ -279,6 +279,7 @@ export default function createYtdlp(config) {
       jobs.set(job.id, job);
       persist(job);
       pending.push(job);
+      log.info(`ytdlp: added job ${job.id} (${job.url})`);
       pump();
       return { externalId: job.id };
     },

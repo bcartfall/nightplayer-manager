@@ -132,6 +132,8 @@ try {
   assert.equal(info.description, 'A mock description');
   assert.equal(info.links.stream, `/api/videos/${first.uuid}/stream`);
   assert.equal(info.links.events, null);
+  assert.equal(info.links.storyboard, null, 'random bytes are not a video, so no storyboard');
+  assert.equal((await fetch(`${gw}/api/videos/${first.uuid}/storyboard`)).status, 404);
   assert.equal(info.fileSize, 1_048_576);
   ok('GET /api/videos/:uuid -> finished, title, description, stream link');
 

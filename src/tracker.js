@@ -10,7 +10,7 @@ const MAX_MISSES = 5;
  * Polls the yt-dlp UI plugin for every active download, mirrors progress into
  * SQLite and publishes it to SSE listeners.
  */
-export function createTracker({ db, plugin, hub, config }) {
+export function createTracker({ db, plugin, hub, config, storyboards }) {
   const misses = new Map();
   let timer = null;
   let busy = false;
@@ -34,6 +34,7 @@ export function createTracker({ db, plugin, hub, config }) {
     const changed = Object.entries(patch).some(([k, v]) => v !== undefined && row[k] !== v);
     if (!changed) return row;
     const next = db.update(uuid, patch);
+    if (next.status === 'finished' && row.status !== 'finished') storyboards?.enqueue(uuid);
     const payload = view(next);
     hub.emit(uuid, 'progress', payload);
     if (TERMINAL.has(next.status)) hub.emit(uuid, 'done', payload);

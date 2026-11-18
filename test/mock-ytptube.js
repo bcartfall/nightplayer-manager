@@ -1,13 +1,13 @@
 import http from 'node:http';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
  * Tiny stand-in for YTPTube. It models the endpoints the plugin uses and
  * "downloads" by ticking progress up and then writing a random file.
  */
-export function startMock({ downloadDir, port }) {
+export function startMock({ downloadDir, port, makeFile }) {
   const queue = new Map();
   const history = new Map();
   const calls = [];
@@ -38,9 +38,14 @@ export function startMock({ downloadDir, port }) {
         item.filename = `${item.id}.mp4`;
         const dir = join(downloadDir, item.folder);
         mkdirSync(dir, { recursive: true });
-        const data = randomBytes(1_048_576);
-        writeFileSync(join(dir, item.filename), data);
-        item.file_size = data.length;
+        if (makeFile) { // caller supplies a real video
+          makeFile(join(dir, item.filename));
+          item.file_size = statSync(join(dir, item.filename)).size;
+        } else {
+          const data = randomBytes(1_048_576);
+          writeFileSync(join(dir, item.filename), data);
+          item.file_size = data.length;
+        }
         queue.delete(item.id);
         history.set(item.id, item);
       }

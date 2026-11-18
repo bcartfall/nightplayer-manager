@@ -1,3 +1,5 @@
+import { hasStoryboard } from './storyboard.js';
+
 export const ACTIVE = new Set(['queued', 'downloading']);
 export const TERMINAL = new Set(['finished', 'error', 'cancelled']);
 
@@ -23,6 +25,8 @@ export function view(row) {
       self: base,
       stream: row.status === 'finished' ? `${base}/stream` : null,
       events: ACTIVE.has(row.status) ? `${base}/events` : null,
+      // Generated in the background after the download finishes; null until the .sbb file exists.
+      storyboard: row.status === 'finished' && hasStoryboard(row.file_path) ? `${base}/storyboard` : null,
     },
   };
 }

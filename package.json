@@ -10,6 +10,6 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "node --no-warnings test/ytdlp.js && node test/run.js"
+    "test": "node --no-warnings test/ytdlp.js && node --no-warnings test/storyboard.js && node test/run.js"
   }
 }

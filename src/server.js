@@ -6,13 +6,14 @@ import { randomUUID } from 'node:crypto';
 import { dirname, extname } from 'node:path';
 import { HttpError, createRouter, openSse, readJson, sendJson } from './http.js';
 import { serveFile } from './stream.js';
+import { storyboardPath } from './storyboard.js';
 import { parseVideoUrl } from './urls.js';
 import { isInside } from './paths.js';
 import { ACTIVE, TERMINAL, view } from './view.js';
 import { log } from './log.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SIDECARS = ['.info.json', '.description', '.jpg', '.jpeg', '.png', '.webp', '.nfo', '.srt', '.vtt'];
+const SIDECARS = ['.info.json', '.description', '.jpg', '.jpeg', '.png', '.webp', '.nfo', '.srt', '.vtt', '.sbb'];
 
 export function createServer({ config, db, plugin, hub, tracker }) {
   const cors = {
@@ -158,6 +159,15 @@ export function createServer({ config, db, plugin, hub, tracker }) {
     const st = await fileStat(row.file_path);
     if (!st) throw new HttpError(410, `The video file is missing from disk (${row.file_path}); POST /api/download again to re-fetch it`);
     serveFile(req, res, row.file_path, st, cors);
+  });
+
+  // GET|HEAD /api/videos/:uuid/storyboard  (the .sbb file, Range-capable)
+  router.add('GET', '/api/videos/:uuid/storyboard', async ({ req, res, params }) => {
+    const row = mustGet(params.uuid);
+    const path = row.status === 'finished' && row.file_path ? storyboardPath(row.file_path) : null;
+    const st = path && await fileStat(path);
+    if (!st) throw new HttpError(404, 'No storyboard available for this video');
+    serveFile(req, res, path, st, cors);
   });
 
   router.add('GET', '/api/health', async ({ res }) => {

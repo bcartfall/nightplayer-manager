@@ -3,6 +3,7 @@ import { config } from './config.js';
 import { openDb } from './db.js';
 import { createHub } from './events.js';
 import { loadPlugin } from './plugins/index.js';
+import { createStoryboards } from './storyboard.js';
 import { createTracker } from './tracker.js';
 import { createServer } from './server.js';
 import { log } from './log.js';
@@ -10,7 +11,8 @@ import { log } from './log.js';
 const db = openDb(config.dbPath);
 const hub = createHub();
 const plugin = await loadPlugin(config.ytdlpUi, config);
-const tracker = createTracker({ db, plugin, hub, config });
+const storyboards = createStoryboards({ db, config });
+const tracker = createTracker({ db, plugin, hub, config, storyboards });
 const server = createServer({ config, db, plugin, hub, tracker });
 
 if (!existsSync(config.downloadPath)) {
@@ -22,11 +24,13 @@ server.listen(config.port, config.host, () => {
   log.info(`listening on ${proto}://${config.host}:${config.port}`);
   log.info(`yt-dlp UI plugin: ${plugin.name}; downloads: ${config.downloadPath}; db: ${config.dbPath}`);
   tracker.start();
+  storyboards.backfill();
 });
 
 function shutdown(signal) {
   log.info(`${signal} received, shutting down`);
   tracker.stop();
+  storyboards.stop();
   server.close(() => {
     db.close();
     process.exit(0);

@@ -22,6 +22,12 @@ export const config = {
   pollIntervalMs: Math.max(250, int(env.POLL_INTERVAL_MS, 1500)),
   corsOrigin: env.CORS_ORIGIN || '*',
   tls: { key: env.TLS_KEY || '', cert: env.TLS_CERT || '' },
+  storyboard: {
+    // Build a .sbb storyboard next to each finished video (needs ffmpeg).
+    enabled: !/^(0|false|no|off)$/i.test((env.STORYBOARD ?? '').trim()),
+    ffmpeg: env.FFMPEG_BIN || 'ffmpeg',
+    ffprobe: env.FFPROBE_BIN || 'ffprobe', // used to read the video length
+  },
   ytdlp: {
     bin: env.YTDLP_BIN || 'yt-dlp',
     // Folder for the plugin's job files (resume after restart) and yt-dlp's cache.
