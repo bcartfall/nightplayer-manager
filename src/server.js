@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { dirname, extname } from 'node:path';
 import { HttpError, createRouter, openSse, readJson, sendJson } from './http.js';
 import { serveFile } from './stream.js';
+import { createStatic } from './static.js';
 import { storyboardPath } from './storyboard.js';
 import { parseVideoUrl } from './urls.js';
 import { isInside } from './paths.js';
@@ -15,7 +16,8 @@ import { log } from './log.js';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SIDECARS = ['.info.json', '.description', '.jpg', '.jpeg', '.png', '.webp', '.nfo', '.srt', '.vtt', '.sbb'];
 
-export function createServer({ config, db, plugin, hub, tracker }) {
+export function createServer({ config, db, plugin, hub, tracker, media }) {
+  const serveUi = createStatic(config.uiPath);
   const cors = {
     'access-control-allow-origin': config.corsOrigin,
     'access-control-allow-methods': 'GET, POST, DELETE, HEAD, OPTIONS',
@@ -70,7 +72,9 @@ export function createServer({ config, db, plugin, hub, tracker }) {
         tracker.applyPatch(row.uuid, {
           title: cur.title ? undefined : info.title ?? undefined,
           description: cur.description ? undefined : info.description ?? undefined,
+          duration: cur.duration ? undefined : info.duration ?? undefined,
         });
+        media?.fromUrl(row.uuid, info.thumbnail);
       }).catch((err) => log.warn(`${plugin.name}: info lookup failed: ${err.message}`));
 
       return next;
@@ -107,6 +111,20 @@ export function createServer({ config, db, plugin, hub, tracker }) {
     });
     const started = await startDownload(row, parsed.canonicalUrl, { isNew: true });
     sendJson(res, 202, { existing: false, ...view(started) });
+  });
+
+  // GET /api/videos?status=active|finished|failed   (newest first)
+  router.add('GET', '/api/videos', async ({ res, url }) => {
+    const status = url.searchParams.get('status') || 'all';
+    const groups = {
+      active: (r) => ACTIVE.has(r.status),
+      finished: (r) => r.status === 'finished',
+      failed: (r) => r.status === 'error' || r.status === 'cancelled',
+      all: () => true,
+    };
+    if (!groups[status]) throw new HttpError(400, 'status must be one of: active, finished, failed, all');
+    const items = db.listAll().filter(groups[status]).map(view);
+    sendJson(res, 200, { items, count: items.length }, { 'cache-control': 'no-store' });
   });
 
   // GET /api/videos/:uuid
@@ -170,6 +188,19 @@ export function createServer({ config, db, plugin, hub, tracker }) {
     serveFile(req, res, path, st, cors);
   });
 
+  // GET|HEAD /api/videos/:uuid/thumbnail  (image kept in the DB)
+  router.add('GET', '/api/videos/:uuid/thumbnail', async ({ req, res, params }) => {
+    const row = mustGet(params.uuid);
+    const thumb = db.getThumbnail(row.uuid);
+    if (!thumb) throw new HttpError(404, 'No thumbnail for this video');
+    res.writeHead(200, {
+      'content-type': thumb.type,
+      'content-length': thumb.data.length,
+      'cache-control': 'public, max-age=86400',
+    });
+    res.end(req.method === 'HEAD' ? undefined : thumb.data);
+  });
+
   router.add('GET', '/api/health', async ({ res }) => {
     sendJson(res, 200, { ok: true, plugin: plugin.name, protocol: config.tls.key ? 'h2' : 'http/1.1' });
   });
@@ -184,6 +215,7 @@ export function createServer({ config, db, plugin, hub, tracker }) {
       }
       const hit = router.match(req.method, url.pathname);
       if (!hit.handler) {
+        if (serveUi?.(req, res, url.pathname)) return;
         throw new HttpError(hit.pathMatched ? 405 : 404, hit.pathMatched ? 'Method not allowed' : 'Not found');
       }
       await hit.handler({ req, res, url, params: hit.params });

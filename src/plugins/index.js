@@ -10,12 +10,13 @@ import { readdirSync } from 'node:fs';
  *        state: 'queued'|'downloading'|'finished'|'error'|'cancelled',
  *        percent: number|null, speed: number|null (bytes/s), eta: number|null (s),
  *        title: string|null, description: string|null, error: string|null,
+ *        duration?: number|null (s), thumbnail?: string|null (image URL),
  *        fileCandidates: string[]   // paths relative to DOWNLOAD_PATH, tried in order
  *        fileSize: number|null }>   // null = the UI no longer knows this id
  *   remove(externalId, { removeFile }) -> Promise<{ warnings: string[] }>
  *
  * and may provide:
- *   info(url) -> Promise<{ title, description } | null>   // metadata without downloading
+ *   info(url) -> Promise<{ title, description, duration?, thumbnail? } | null>   // metadata without downloading
  */
 const REQUIRED = ['add', 'status', 'remove'];
 

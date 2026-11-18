@@ -10,7 +10,7 @@ const home = args.find((a) => a.startsWith('home:'))?.slice(5);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 if (args.includes('--dump-single-json')) {
-  console.log(JSON.stringify({ title: 'Fake Title', description: 'Fake description' }));
+  console.log(JSON.stringify({ title: 'Fake Title', description: 'Fake description', duration: 93, thumbnail: 'https://example.test/t.jpg' }));
   process.exit(0);
 }
 if (url.endsWith('/fail')) {
@@ -18,7 +18,7 @@ if (url.endsWith('/fail')) {
   process.exit(1);
 }
 
-console.log('__META__' + JSON.stringify({ title: 'Fake Title', description: 'Line 1\nLine 2', requested_formats: [{}, {}] }));
+console.log('__META__' + JSON.stringify({ title: 'Fake Title', description: 'Line 1\nLine 2', duration: 93, thumbnail: 'https://example.test/t.jpg', requested_formats: [{}, {}] }));
 const steps = url.endsWith('/slow') ? 300 : 4;
 for (let stream = 0; stream < 2; stream++) {
   for (let i = 1; i <= steps; i++) {

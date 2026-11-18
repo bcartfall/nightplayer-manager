@@ -1,3 +1,11 @@
+# Build Vue + Tailwind frontend
+FROM node:22-alpine AS ui
+WORKDIR /ui
+COPY ui/package.json ui/package.json ./
+RUN npm install
+COPY ui/ ./
+RUN npm run build
+
 FROM node:22-alpine
 
 ENV NODE_ENV=production \
@@ -23,6 +31,7 @@ WORKDIR /app
 # No npm dependencies, so there is no npm install step.
 COPY package.json ./
 COPY src ./src
+COPY --from=ui /ui/dist ./ui/dist
 
 # /data holds the SQLite DB; world-writable so any uid set via compose `user:` can use it.
 RUN mkdir -p /data /downloads && chmod 777 /data /downloads

@@ -103,6 +103,8 @@ export default function createYtptube(config) {
       eta: num(item.eta),
       title: item.title || null,
       description: item.extras?.description ?? item.description ?? null,
+      duration: num(item.extras?.duration ?? item.duration),
+      thumbnail: item.extras?.thumbnail ?? item.thumbnail ?? null,
       error,
       fileCandidates,
       fileSize: num(item.file_size),
@@ -184,7 +186,7 @@ export default function createYtptube(config) {
       });
       const d = data?.info ?? data;
       if (!d || typeof d !== 'object') return null;
-      return { title: d.title ?? null, description: d.description ?? null };
+      return { title: d.title ?? null, description: d.description ?? null, duration: num(d.duration), thumbnail: d.thumbnail ?? null };
     },
   };
 }

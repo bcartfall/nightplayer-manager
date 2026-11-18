@@ -19,10 +19,12 @@ export function view(row) {
     eta: row.eta, // seconds, null when unknown
     error: row.error,
     fileSize: row.file_size,
+    duration: row.duration ?? null, // seconds
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     links: {
       self: base,
+      thumbnail: row.has_thumbnail ? `${base}/thumbnail` : null,
       stream: row.status === 'finished' ? `${base}/stream` : null,
       events: ACTIVE.has(row.status) ? `${base}/events` : null,
       // Generated in the background after the download finishes; null until the .sbb file exists.

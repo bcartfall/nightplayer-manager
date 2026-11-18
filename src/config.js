@@ -18,6 +18,7 @@ export const config = {
   port: int(env.PORT, 3000),
   downloadPath: resolve(env.DOWNLOAD_PATH || '/mnt/media/yt-dlp/downloads'),
   dbPath: resolve(env.DB_PATH || './data/gateway.db'),
+  uiPath: resolve(env.UI_PATH || './ui/dist'), // built Vue app, served at /
   ytdlpUi: (env.YTDLP_UI || 'ytptube').trim().toLowerCase(),
   pollIntervalMs: Math.max(250, int(env.POLL_INTERVAL_MS, 1500)),
   corsOrigin: env.CORS_ORIGIN || '*',

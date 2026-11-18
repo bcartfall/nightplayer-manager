@@ -6,3 +6,5 @@ test
 README.md
 compose.yaml
 Dockerfile
+ui/node_modules
+ui/dist

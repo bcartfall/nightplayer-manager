@@ -10,6 +10,21 @@ npm start
 npm test                 # end-to-end test against a mock YTPTube
 ```
 
+## Web UI
+
+A dark-theme Vue 3 + Tailwind app in `ui/`, served by the manager itself at `/` once built (the Docker image builds it for you).
+
+```
+cd ui && npm install && npm run build     # then open http://localhost:3001/
+cd ui && npm run dev                      # hot reload on :5173, proxies /api to http://localhost:3001 (VITE_PROXY to change)
+```
+
+* **Downloads** – add a link; every running download is a card in a grid with thumbnail, title, description, length and live progress, speed and ETA over its `links.events` stream. The thumbnail turns from grey to colour as the download advances. At most four event streams are open at once (browsers allow ~6 HTTP/1.1 connections per origin); the rest are covered by a 2 s poll of `GET /api/videos`.
+* **Library** – finished downloads in a grid with search, play, delete and a jump to the storyboard.
+* **SBB viewer** – drop an `.sbb` file or pick one from the library. Shows header fields, index, health checks, a scrubber that previews every stored image with its timestamp, and a sheet browser. Parsing happens in the browser.
+
+The UI needs two additions to the API, listed below: `GET /api/videos` and `GET /api/videos/{uuid}/thumbnail`. Set `UI_PATH` to serve a build from elsewhere.
+
 ## Configuration (.env)
 
 | Variable | Default | Purpose |
@@ -26,6 +41,7 @@ npm test                 # end-to-end test against a mock YTPTube
 | `TLS_KEY` / `TLS_CERT` | – | Set both to serve HTTP/2 (+ HTTP/1.1 fallback) directly |
 | `CORS_ORIGIN` | `*` | `Access-Control-Allow-Origin` |
 | `STORYBOARD` | `1` | Set `0` to stop generating `.sbb` storyboard files |
+| `UI_PATH` | `./ui/dist` | Folder with the built web UI |
 | `FFMPEG_BIN` | `ffmpeg` | ffmpeg used for storyboards (already in the Docker image) |
 
 **About HTTP/2:** browsers only speak h2 over TLS, so Node serves h2 only when `TLS_KEY`/`TLS_CERT` are set. Without them it serves HTTP/1.1, which is the right choice behind a reverse proxy (Caddy, nginx, Traefik) that terminates TLS and speaks h2 to the browser. Range requests behave identically on both.
@@ -53,8 +69,14 @@ Accepts a single YouTube video (watch, youtu.be, shorts, live, embed) or a Twitc
 }
 ```
 
+### `GET /api/videos?status=active|finished|failed|all`
+`{ "items": [...], "count": n }`, newest first. Each item is the same JSON as `GET /api/videos/{uuid}`.
+
+### `GET /api/videos/{uuid}/thumbnail`
+The video's thumbnail, stored in the database (`404` if none). It comes from the thumbnail URL yt-dlp/YTPTube reports, or, once the video is finished, from an image next to the file or a frame grabbed with ffmpeg. `links.thumbnail` is `null` until it exists.
+
 ### `GET /api/videos/{uuid}`
-Title, description, `status` (`queued | downloading | finished | error | cancelled`), `percent`, `speed` (bytes/s), `eta` (s), `error`, `fileSize`. `links.events` is present while downloading, `links.stream` once finished. `links.storyboard` is `/api/videos/{uuid}/storyboard` once the storyboard file exists, otherwise `null` (see below).
+Title, description, `duration` (s), `status` (`queued | downloading | finished | error | cancelled`), `percent`, `speed` (bytes/s), `eta` (s), `error`, `fileSize`. `links.events` is present while downloading, `links.stream` once finished. `links.storyboard` is `/api/videos/{uuid}/storyboard` once the storyboard file exists, otherwise `null` (see below).
 
 ### `GET /api/videos/{uuid}/events` (Server-Sent Events)
 Sends a `progress` event immediately and on every change (payload = the same JSON as above), then a `done` event (finished / error / cancelled) and closes. `deleted` is sent if the video is deleted meanwhile.

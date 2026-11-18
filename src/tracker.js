@@ -10,7 +10,7 @@ const MAX_MISSES = 5;
  * Polls the yt-dlp UI plugin for every active download, mirrors progress into
  * SQLite and publishes it to SSE listeners.
  */
-export function createTracker({ db, plugin, hub, config, storyboards }) {
+export function createTracker({ db, plugin, hub, config, storyboards, media }) {
   const misses = new Map();
   let timer = null;
   let busy = false;
@@ -34,7 +34,10 @@ export function createTracker({ db, plugin, hub, config, storyboards }) {
     const changed = Object.entries(patch).some(([k, v]) => v !== undefined && row[k] !== v);
     if (!changed) return row;
     const next = db.update(uuid, patch);
-    if (next.status === 'finished' && row.status !== 'finished') storyboards?.enqueue(uuid);
+    if (next.status === 'finished' && row.status !== 'finished') {
+      media?.fillFromFile(uuid);
+      storyboards?.enqueue(uuid);
+    }
     const payload = view(next);
     hub.emit(uuid, 'progress', payload);
     if (TERMINAL.has(next.status)) hub.emit(uuid, 'done', payload);
@@ -64,6 +67,8 @@ export function createTracker({ db, plugin, hub, config, storyboards }) {
     const patch = {};
     if (st.title && st.title !== row.title) patch.title = st.title;
     if (st.description && st.description !== row.description) patch.description = st.description;
+    if (st.duration && st.duration !== row.duration) patch.duration = st.duration;
+    if (st.thumbnail && !row.has_thumbnail) media?.fromUrl(row.uuid, st.thumbnail);
 
     if (st.state === 'finished') {
       const found = await locate(st.fileCandidates);

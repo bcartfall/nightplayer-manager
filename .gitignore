@@ -3,3 +3,5 @@ data/
 downloads/
 node_modules/
 compose.yaml
+ui/node_modules
+ui/dist

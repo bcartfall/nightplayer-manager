@@ -53,8 +53,8 @@ try {
   ok('yt-dlp failure becomes an error state with its message'); n++;
 
   // info()
-  assert.deepEqual(await p.info('https://example.test/ok'), { title: 'Fake Title', description: 'Fake description' });
-  ok('info() returns title and description'); n++;
+  assert.deepEqual(await p.info('https://example.test/ok'), { title: 'Fake Title', description: 'Fake description', duration: 93, thumbnail: 'https://example.test/t.jpg' });
+  ok('info() returns title, description, duration and thumbnail'); n++;
 
   // concurrency 1: the second job waits in the queue, cancelling the first starts it
   const s1 = await p.add('https://example.test/slow');

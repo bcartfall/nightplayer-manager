@@ -137,6 +137,18 @@ try {
   assert.equal(info.fileSize, 1_048_576);
   ok('GET /api/videos/:uuid -> finished, title, description, stream link');
 
+  // ---------- GET /api/videos (list) and thumbnail ----------
+  r = await fetch(`${gw}/api/videos?status=finished`);
+  assert.equal(r.status, 200);
+  const listed = await r.json();
+  assert.equal(listed.count, 1);
+  assert.equal(listed.items[0].uuid, first.uuid);
+  assert.ok('duration' in listed.items[0] && listed.items[0].links.thumbnail === null, 'list items carry duration and a null thumbnail link');
+  assert.equal((await (await fetch(`${gw}/api/videos?status=active`)).json()).count, 0);
+  assert.equal((await fetch(`${gw}/api/videos?status=bogus`)).status, 400);
+  assert.equal((await fetch(`${gw}/api/videos/${first.uuid}/thumbnail`)).status, 404);
+  ok('GET /api/videos lists by status; thumbnail 404s when there is none');
+
   // ---------- GET /api/videos/:uuid/stream (Range) ----------
   // locate the file the mock wrote (one mp4 in mockchan)
   const { readdirSync } = await import('node:fs');

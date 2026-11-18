@@ -47,10 +47,10 @@ export default function createYtdlp(config) {
   const stateFile = (id) => join(cfg.stateDir, `${id}.json`);
 
   function persist(job) {
-    const { id, url, state, title, description, error, file, createdAt } = job;
+    const { id, url, state, title, description, error, file, createdAt, duration, thumbnail } = job;
     const tmp = stateFile(id) + '.tmp';
     try {
-      writeFileSync(tmp, JSON.stringify({ id, url, state, title, description, error, file, createdAt }));
+      writeFileSync(tmp, JSON.stringify({ id, url, state, title, description, error, file, createdAt, duration, thumbnail }));
       renameSync(tmp, stateFile(id));
     } catch (err) {
       log.warn(`ytdlp: could not save job ${id}: ${err.message}`);
@@ -112,7 +112,7 @@ export default function createYtdlp(config) {
       '--progress-template',
       'download:__P__%(progress.status)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|' +
       '%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s',
-      '--print', 'before_dl:__META__%(.{id,title,description,requested_formats})j',
+      '--print', 'before_dl:__META__%(.{id,title,description,requested_formats,duration,thumbnail})j',
       '--print', 'after_move:__FILE__%(filepath)s',
       // stdout encoding is unreliable on Windows; this file is always written as UTF-8
       '--print-to-file', 'after_move:%(filepath)s', join(tmpRoot, job.id, 'filepath.txt'),
@@ -157,6 +157,8 @@ export default function createYtdlp(config) {
         if (meta.id) job.videoId = String(meta.id);
         if (meta.title) job.title = meta.title;
         if (meta.description) job.description = meta.description;
+        if (meta.duration) job.duration = Number(meta.duration);
+        if (meta.thumbnail) job.thumbnail = meta.thumbnail;
         job.streamsTotal = Array.isArray(meta.requested_formats) && meta.requested_formats.length
           ? meta.requested_formats.length : 1;
         persist(job);
@@ -354,6 +356,8 @@ export default function createYtdlp(config) {
         eta: job.eta,
         title: job.title,
         description: job.description,
+        duration: job.duration ?? null,
+        thumbnail: job.thumbnail ?? null,
         error: job.error,
         fileCandidates,
         fileSize,
@@ -410,7 +414,7 @@ export default function createYtdlp(config) {
         });
       });
       const d = JSON.parse(out);
-      return { title: d.title ?? null, description: d.description ?? null };
+      return { title: d.title ?? null, description: d.description ?? null, duration: d.duration ?? null, thumbnail: d.thumbnail ?? null };
     },
   };
 }
