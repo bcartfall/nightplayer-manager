@@ -27,8 +27,8 @@ import { log } from './log.js';
  *   ..  JPEG data of each BIG sheet, back to back
  */
 export const SBB = Object.freeze({
-  width: 160,
-  height: 90,
+  width: 320,
+  height: 180,
   rows: 10,
   columns: 10,
   maxImages: 1920, // per video
